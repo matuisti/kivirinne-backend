@@ -1,0 +1,24 @@
+{
+  "name": "nodejs-mysql-authentication",
+  "version": "1.0.0",
+  "description": "nodejs login with jwt token",
+  "main": "server.js",
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "concurrently \"node server.js\" \"cd .. && npm start --prefix kivirinne-frontend\"",
+    "test": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^3.0.2",
+    "body-parser": "^1.17.2",
+    "concurrently": "^4.0.1",
+    "cors": "^2.8.4",
+    "express": "^4.15.4",
+    "jsonwebtoken": "^8.4.0",
+    "moment": "^2.23.0",
+    "mysql": "^2.16.0"
+  }
+}
