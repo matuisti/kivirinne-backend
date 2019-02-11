@@ -16,4 +16,7 @@ ALTER TABLE `air_sensor_data`
   ADD PRIMARY KEY (`id`);
 
 ALTER TABLE `air_sensor_data`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;COMMIT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT = 1;
+
+ALTER TABLE `air_sensor_data`
+  ADD FOREIGN KEY (device_id) REFERENCES sensors (id);
