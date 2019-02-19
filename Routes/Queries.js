@@ -3,7 +3,9 @@ var api = express.Router();
 var database = require('../Database/database');
 var cors = require('cors')
 var jwt = require('jsonwebtoken');
+
 var token;
+const airTerms = { temperature: 'Lämpötila', humidity: 'Kosteus' };
 
 api.use(cors());
 
@@ -45,9 +47,16 @@ api.get('/get/sensorDataBetweenTwoDays', function(req, res) {
           res.status(500).json(appData);
       } else {
 
-        var sql = "SELECT asd.id, asd.device_id, UNIX_TIMESTAMP(asd.time) as time, asd.temperature, asd.humidity, asd.voltage, asd.awake_time "
+        var sql1 = "SELECT asd.id, asd.device_id, s.sensor_name, UNIX_TIMESTAMP(asd.time) as time, asd.temperature, asd.humidity, asd.voltage, asd.awake_time "
   		          + "FROM air_sensor_data asd JOIN sensors s ON s.id = asd.device_id "
-  		          + "WHERE (time BETWEEN '" + startDate + "' AND '" + endDate + "') AND asd.device_id = " + deviceId;
+  		          + "WHERE (time BETWEEN '" + startDate + "' AND '" + endDate + "')";
+                //  AND asd.device_id = " + deviceId;
+
+        const sql = "SELECT asd.id, asd.device_id, s.sensor_name, UNIX_TIMESTAMP(asd.time) as time, asd.temperature, asd.humidity, s.description FROM sensors s "
+  	              + "JOIN air_sensor_data asd ON s.id = asd.device_id "
+  	              + "WHERE asd.device_id IN (SELECT DISTINCT asd.device_id FROM air_sensor_data asd ORDER BY asd.device_id ASC) AND "
+                  + "(time BETWEEN '" + startDate + "' AND '" + endDate + "') "
+  	              + "ORDER BY asd.device_id ASC, asd.time ASC";
 
         connection.query(sql, function(error, rows, fields) {
             if (!error) {
@@ -57,30 +66,48 @@ api.get('/get/sensorDataBetweenTwoDays', function(req, res) {
                 appData["data"] = "Not Found";
                 res.status(404).json(appData);
               } else {
-              rows.map(function(key, index) {
-                appData.push({
-                  id: rows[index].id,
-                  deviceId: rows[index].device_id,
-                  time: rows[index].time,
-                  airData: {
-                    temperature: rows[index].temperature,
-                    humidity: rows[index].humidity
-                  },
-                  voltage: rows[index].voltage,
-                  awakeTime: rows[index].awake_time
-                })
-              });
-              res.status(200).json(appData);
-            }
+
+                //const keys = [...(new Set(rows.map((rows) => rows.device_id)))];
+                //const dataArray = keys.map((y, i) => rows.filter(x => x.device_id === y).map(item => [((item.time + 7200) * 1000), item.humidity]));
+
+                const uniqueObjects = rows.map(e => e.device_id).map((e, i, final) => final.indexOf(e) === i && i).filter(e => rows[e]).map(e => rows[e]);
+
+                const sensorData = [];
+                uniqueObjects.map((key, index) => {
+                  const data = getChartDataobjectWithDeviceId(rows, key, Object.keys(airTerms), 'line');
+                  sensorData[index] = {
+                    name: key.sensor_name,
+                    data
+                  }
+                });
+
+                res.status(200).json(sensorData);
+              }
             } else {
-                appData["data"] = error;
-                res.status(400).json(appData);
+              appData["data"] = error;
+              res.status(400).json(appData);
             }
         });
         connection.release();
       }
   });
 });
+
+const getChartDataobjectWithDeviceId = (rowData, key, sensorArray, type) => {
+  let data = {};
+  sensorArray.map((item, index) => {
+    const dataArray = rowData.filter(x => x.device_id === key.device_id)
+    .map(item => [((item.time + 7200) * 1000), item[sensorArray[index]]]);
+
+    data[sensorArray[index]] = {
+      name: airTerms[sensorArray[index]],
+      data: dataArray,
+      lineWidth: 2.5,
+      type: type
+    };
+  });
+  return data;
+};
 
 
 /*
@@ -146,7 +173,7 @@ api.get('/get/currentsensordata', function(req, res) {
           appData["data"] = "Internal Server Error";
           res.status(500).json(appData);
       } else {
-        var sql = 'SELECT * FROM air_sensor_data WHERE id IN (SELECT MAX(id) AS id FROM air_sensor_data GROUP BY device_id)';
+        const sql = 'SELECT * FROM air_sensor_data WHERE id IN (SELECT MAX(id) AS id FROM air_sensor_data GROUP BY device_id)';
         connection.query(sql, function(error, rows, fields) {
             if (!error) {
               if(!Object.keys(rows).length) {
@@ -166,5 +193,49 @@ api.get('/get/currentsensordata', function(req, res) {
       }
   });
 });
+
+
+api.get('/get/test', function(req, res) {
+  var appData = {};
+  const { startDate, endDate } = req.query;
+
+  database.connection.getConnection(function(err, connection) {
+      if (err) {
+          appData["error"] = 1;
+          appData["data"] = "Internal Server Error";
+          res.status(500).json(appData);
+      } else {
+
+        const sql = "SELECT asd.id, asd.device_id, s.sensor_name, UNIX_TIMESTAMP(asd.time) as time, asd.temperature, asd.humidity FROM sensors s "
+		              + "JOIN air_sensor_data asd ON s.id = asd.device_id "
+		              + "WHERE asd.device_id IN (SELECT DISTINCT asd.device_id FROM air_sensor_data asd ORDER BY asd.device_id ASC) AND "
+                  + "(time BETWEEN '" + startDate + "' AND '" + endDate + "') "
+		              + "ORDER BY asd.device_id ASC, asd.time ASC";
+
+        connection.query(sql, function(error, rows, fields) {
+            if (!error) {
+              if(!Object.keys(rows).length) {
+                appData["error"] = 1;
+                appData["data"] = "Not Found";
+                res.status(404).json(appData);
+              } else {
+
+                const keys = [...(new Set(rows.map((rows) => rows.device_id)))];
+                const test = keys.map((y, i) => rows.filter(x => x.device_id === y).map(x => x));
+                console.log(test);
+
+                appData["data"] = rows;
+                res.status(200).json(test);
+              }
+            } else {
+              appData["data"] = error;
+              res.status(400).json(appData);
+            }
+        });
+        connection.release();
+      }
+  });
+});
+
 
 module.exports = api;
