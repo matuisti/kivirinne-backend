@@ -11,7 +11,7 @@ insert.get('/dht', function(req, res) {
     var appData = {};
     const { device_id, temperature, humidity, voltage, awake_time } = req.query;
     var timestamp = moment(Date.now()).format('YYYY-MM-DD HH:mm:ss');
-    console.log(timestamp);
+    console.log('Device id:', device_id, timestamp);
 
     var post = {
       device_id: device_id,

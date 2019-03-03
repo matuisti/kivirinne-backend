@@ -47,12 +47,7 @@ api.get('/get/sensorDataBetweenTwoDays', function(req, res) {
           res.status(500).json(appData);
       } else {
 
-        var sql1 = "SELECT asd.id, asd.device_id, s.sensor_name, UNIX_TIMESTAMP(asd.time) as time, asd.temperature, asd.humidity, asd.voltage, asd.awake_time "
-  		          + "FROM air_sensor_data asd JOIN sensors s ON s.id = asd.device_id "
-  		          + "WHERE (time BETWEEN '" + startDate + "' AND '" + endDate + "')";
-                //  AND asd.device_id = " + deviceId;
-
-        const sql = "SELECT asd.id, asd.device_id, s.sensor_name, UNIX_TIMESTAMP(asd.time) as time, asd.temperature, asd.humidity, s.description FROM sensors s "
+        const sql = "SELECT asd.id, asd.device_id, s.sensor_name, UNIX_TIMESTAMP(asd.time) as time, asd.temperature, asd.humidity, s.description, s.temp_description, s.hum_description FROM sensors s "
   	              + "JOIN air_sensor_data asd ON s.id = asd.device_id "
   	              + "WHERE asd.device_id IN (SELECT DISTINCT asd.device_id FROM air_sensor_data asd ORDER BY asd.device_id ASC) AND "
                   + "(time BETWEEN '" + startDate + "' AND '" + endDate + "') "
@@ -67,16 +62,26 @@ api.get('/get/sensorDataBetweenTwoDays', function(req, res) {
                 res.status(404).json(appData);
               } else {
 
-                //const keys = [...(new Set(rows.map((rows) => rows.device_id)))];
-                //const dataArray = keys.map((y, i) => rows.filter(x => x.device_id === y).map(item => [((item.time + 7200) * 1000), item.humidity]));
-
-                const uniqueObjects = rows.map(e => e.device_id).map((e, i, final) => final.indexOf(e) === i && i).filter(e => rows[e]).map(e => rows[e]);
+                const uniqueObjects = rows.map(e => e.temp_description)
+                  .map((e, i, final) => final.indexOf(e) === i && i).filter(e => rows[e])
+                  .map(e => [rows[e].temp_description, 'temperature'])
+                  .concat(rows.map(e => e.temp_description)
+                  .map((e, i, final) => final.indexOf(e) === i && i).filter(e => rows[e])
+                  .map(e => [rows[e].hum_description, 'humidity']));
 
                 const sensorData = [];
-                uniqueObjects.map((key, index) => {
-                  const data = getChartDataobjectWithDeviceId(rows, key, Object.keys(airTerms), 'line');
+                uniqueObjects.map((description, index) => {
+                  const data = rows.filter((x, i) => x.temp_description === description[0] || x.hum_description === description[0])
+                  .map(item => [((item.time + 7200) * 1000), item[description[1]]]);
+
                   sensorData[index] = {
-                    name: key.sensor_name,
+                    name: description[0],
+                    lineWidth: 2.5,
+                    type: 'line',
+                    marker: {
+                      symbol: 'point',
+                      radius: 3
+                    },
                     data
                   }
                 });
@@ -93,19 +98,18 @@ api.get('/get/sensorDataBetweenTwoDays', function(req, res) {
   });
 });
 
-const getChartDataobjectWithDeviceId = (rowData, key, sensorArray, type) => {
-  let data = {};
-  sensorArray.map((item, index) => {
-    const dataArray = rowData.filter(x => x.device_id === key.device_id)
-    .map(item => [((item.time + 7200) * 1000), item[sensorArray[index]]]);
+const getChartDataobjectWithDeviceId = (rowData, description, type) => {
 
-    data[sensorArray[index]] = {
-      name: airTerms[sensorArray[index]],
+  let data = {};
+
+    const dataArray = rowData.filter((x, i) => x.temp_description === description[0] || x.hum_description === description[0])
+    .map(item => [((item.time + 7200) * 1000), item[description[1]]]);
+    data = {
       data: dataArray,
       lineWidth: 2.5,
       type: type
     };
-  });
+
   return data;
 };
 

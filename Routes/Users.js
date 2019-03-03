@@ -79,7 +79,7 @@ users.post('/login', function(req, res) {
                 token = jwt.sign({
                   data: rows[0],
                 }, process.env.SECRET_KEY, {
-                  expiresIn: 5000
+                  expiresIn: 50000
                 });
                 appData.error = 0;
                 appData["token"] = token;
