@@ -76,12 +76,6 @@ api.get('/get/sensorDataBetweenTwoDays', function(req, res) {
 
                   sensorData[index] = {
                     name: description[0],
-                    lineWidth: 2.5,
-                    type: 'line',
-                    marker: {
-                      symbol: 'point',
-                      radius: 3
-                    },
                     data
                   }
                 });
